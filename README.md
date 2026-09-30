@@ -2,6 +2,9 @@
 
 **Does one demonstration plus reinforcement learning lift a 450M vision language action model the way it lifts a 7B one?**
 
+![A25-SFT succeeds and A1-RL fails on LIBERO-Goal task 9, same initial state](figures/demo_task9_state0.webp)
+
+
 ## Summary
 
 SimpleVLA-RL (Li et al., arXiv 2509.09674) reports that OpenVLA-OFT, a 7B vision language action model fine tuned on one trajectory per task, rises from 63.6 to 98.2 percent success on LIBERO-Goal after online RL (17.3 to 91.7 on LIBERO-Long; their Table 5). This repository tests the same starting condition at 450M: SmolVLA (Shukor et al., arXiv 2506.01844) fine tuned on one demonstration per task, which starts from a similar 62.0 percent on LIBERO-Goal, followed by online RL. Every run used a single RTX 5070 Ti (16 GB).
