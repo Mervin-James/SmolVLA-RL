@@ -63,8 +63,8 @@ Pooled over seeds, 140 episodes per cell.
 ## Reading
 
 1. **RL changed neither distribution.** Both gains have intervals spanning zero, and A1-RL's category profile tracks A1-SFT's within 2.1 points in every category.
-2. **The demonstration gap survives perturbation, smaller.** A25-SFT leads A1-SFT by 22.2 points in distribution and 15.4 on LIBERO-Plus. RL closes neither.
-3. **Language paraphrase collapses every policy** (0.7 to 2.1 percent). The other categories spread from 25 to 74 percent, so this is a property of the policies, not a broken harness: published models also collapse in single categories, and none has a flat profile (LIBERO-Plus fork README; `scripts/cp3_diagnose.py` compares).
+2. **The demonstration gap persists under perturbation.** A25-SFT leads A1-SFT by 22.2 points in distribution (Welch 95% interval about [7.7, 36.7]) and 15.4 on LIBERO-Plus (about [10.5, 20.3]). The difference between the two gaps, paired by seed, is 6.8 points with an interval of about ±13.4, so whether the gap shrinks is not resolved; in relative terms it grows, because the base rate falls. RL closes neither.
+3. **Language paraphrase collapses every policy** (0.7 to 2.1 percent). The other categories spread from 25 to 74 percent, so the harness as a whole is not broken, and published models also collapse in single categories (LIBERO-Plus fork README; `scripts/cp3_diagnose.py` compares). That does not validate the paraphrase path itself: the paraphrases were checked at the fork's instruction builder, but unlike the other categories' instructions (`probe_envs.py`), they were not inspected as the policy receives them.
 4. Whether this sharded, one episode per variant evaluation is deterministic was not tested.
 
 ## Reproducing

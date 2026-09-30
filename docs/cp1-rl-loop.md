@@ -29,7 +29,7 @@ Checks 1 to 4 run with `python -m smolvla_rl.rl.verify` and, on the live configu
 | --- | --- | --- |
 | Trainable weights in bf16 | updates at RL learning rates round away | upcast trainable tensors to fp32 |
 | Log probabilities recomputed on a merged batch | \|ratio - 1\| of 3.1e-2 before any update, because bf16 kernels depend on batch size | recompute per policy call, in the rollout's exact layout (6.1e-5) |
-| lerobot reloads a saved expert in bf16 | only 10.5M of 99.8M changed weights survive a reload, cosine 0.41 with the true update | load at the stored dtype (`--stored-dtype`); SFT checkpoints load identically either way |
+| lerobot reloads a saved expert in bf16 | of the 99.8M expert weights an update changed (of 99.9M trainable), only 10.5M survive a reload, cosine 0.41 with the true update | load at the stored dtype (`--stored-dtype`); SFT checkpoints load identically either way |
 
 ## First recipe: one update per round of 10 episodes
 
@@ -43,11 +43,11 @@ On LIBERO-Goal task 4, from A1-SFT (100 episode ODE evals on the same episodes, 
 
 Identical runs landed up to 24 points apart; the mean change was about zero. Two measurements explain why.
 
-**The initial state decides the outcome.** 38 of task 4's 50 initial states gave the same outcome on every visit. A baseline averaged over a group of different states therefore scores state difficulty rather than action quality. Advantages are instead computed against a running mean of the last 5 visits to the same (task, state) pair.
+**The initial state decides the outcome.** In the check 5 run (learning rate 5e-7, one noisy step at level 0.5), where the policy barely moved, 38 of task 4's 50 initial states gave the same outcome on all 6 visits: 18 always failed and 20 always succeeded (`logs/cp1/rl_episodes.csv`; in that log's layout, episode e of round r starts at state (10r + e) mod 50). A baseline averaged over a group of different states therefore scores state difficulty rather than action quality. Advantages are instead computed against a running mean of the last 5 visits to the same (task, state) pair.
 
 **Ten episodes are far below the gradient noise scale.** With the policy frozen, per episode score gradients over 200 episodes (`src/smolvla_rl/rl/grad_noise.py`) give a pairwise cosine between round gradients of 0.00 ± 0.02 under every sampler and baseline tested. That bounds the per round signal to noise ratio at about 0.05, which puts the noise scale at 200 episodes or more per update. The per state baseline lowered the noise trace 2 to 3 times relative to the group baseline in every configuration.
 
-**Exploration noise costs little at deployment.** SFT policies evaluated with injected noise (`logs/episodes_noise.csv`, 200 episodes each): A25 seed 0 scores 90.0 without noise and 89.0 to 90.5 at noise levels 0.3 to 0.8; A1 seed 0 scores 61.5 to 65.5. Noise applied jointly at all 10 denoising steps at level 1.5 reduced the number of task 4 states with a fixed outcome from 40 to 27 without changing success (0.545 against 0.56, within one standard error).
+**Exploration noise costs little at deployment.** SFT policies evaluated with injected noise (`logs/episodes_noise.csv`, 200 episodes each): A25 seed 0 scores 90.0 without noise and 89.0 to 90.5 at noise levels 0.3 to 0.8; A1 seed 0 scores 61.5 to 65.5. In separate frozen policy runs with 4 visits per state (`src/smolvla_rl/rl/grad_noise.py`; its summaries are not in `logs/`), noise applied jointly at all 10 denoising steps at level 1.5 reduced the number of task 4 states with a fixed outcome from 40, at one noisy step of level 0.5, to 27, without changing success (0.545 against 0.56, within one standard error).
 
 ## Accumulated update recipe
 

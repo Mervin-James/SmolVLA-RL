@@ -52,12 +52,12 @@ Only seed 1 improved its training states detectably under the training sampler (
 
 No detectable gain on training states either. The training sampler gain of seed 1 does not appear under the noise free sampler at a size 300 episodes can detect.
 
-**Evaluation is deterministic at a fixed configuration.** Three runs of A1-SFT seed 1's primary evaluation (20 episodes per task) agree on all 200 episodes. The 50 episode run above differs from them on 33 of the first 200 episodes, so outcomes depend on the random draw that the episode count determines (inferred, not traced to the code). Consequences: the per seed differences in the primary table are behaviour changes measured on one fixed draw, not evaluation noise; RL seed 1 changed its outcome on 25 held out episodes, in both directions, netting to about zero.
+**Evaluation is deterministic at a fixed configuration.** Three runs of A1-SFT seed 1's primary evaluation (20 episodes per task) agree on all 200 episodes. The 50 episode run above differs from them on 33 of the first 200 episodes, so outcomes depend on the random draw that the episode count determines (inferred, not traced to the code). Consequences: the per seed differences in the primary table are behaviour changes measured on one fixed draw, but one draw is one sample: RL seed 1 changed its outcome on 25 held out episodes in the primary draw, netting to about zero, and its held out lift is -1.5 on that draw and +2.5 on the 50 episode draw. Outcome changes of this size occur without any policy change when only the draw changes (33 of 200).
 
 ## Considered and not run
 
 - **A 5 demonstration rung.** A1 is not at a signal floor: before any update, A1 success on its training states was 48.5 to 69 percent across seeds 0 to 3, near the 50 percent where binary reward carries the most information, and RL did move an A1 policy on task 4 with ten times the per task episodes.
-- **Extending training beyond 160 rounds.** The four seed interval then available bounded the held out lift at +0.72, so even doubling the largest effect the data allowed would not approach the predicted +5, and the weight change added per 40 rounds shrank through every run (norm 0.0038, 0.0057, 0.0071, 0.0083 at rounds 40 to 160).
+- **Extending training beyond 160 rounds.** The four seed interval then available bounded the held out lift at +0.72, so even doubling the largest effect the data allowed would not approach the predicted +5, and for seeds 0 and 1 the cumulative weight change grew by less in each successive 40 rounds (norm 0.0038, 0.0057, 0.0071, 0.0083 at rounds 40 to 160, increments 0.0038, 0.0019, 0.0014, 0.0012).
 
 ## What this answers
 
