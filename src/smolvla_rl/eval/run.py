@@ -57,6 +57,10 @@ def main() -> None:
     parser.add_argument("--num-shards", type=int, default=1)
     parser.add_argument("--env-type", default="libero")
     parser.add_argument("--episode-length", type=int)
+    parser.add_argument("--noise-method")
+    parser.add_argument("--noise-level", type=float, default=0.5)
+    parser.add_argument("--noise-joint", action="store_true")
+    parser.add_argument("--stored-dtype", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
@@ -65,6 +69,11 @@ def main() -> None:
     command = build_command(args.policy_path, args.output_dir, args.episodes,
                             min(args.batch_size, args.episodes), args.parallel_tasks, args.seed,
                             task_ids, args.env_type, args.episode_length)
+    if args.noise_method or args.stored_dtype:
+        patches = ["--noise-method", args.noise_method, "--noise-level", str(args.noise_level)] if args.noise_method else []
+        patches += ["--noise-joint"] if args.noise_joint else []
+        patches += ["--stored-dtype"] if args.stored_dtype else []
+        command = [sys.executable, "-m", "smolvla_rl.rl.noisy_eval", *patches, *command[1:]]
     print(" \\\n  ".join(command), flush=True)
     if not args.dry_run:
         os.chdir(ROOT)

@@ -9,8 +9,11 @@ SimpleVLA-RL (arXiv 2509.09674) took OpenVLA-OFT, a 7B model, from 17.3 to 91.7 
 | checkpoint | question | record |
 | --- | --- | --- |
 | CP0 | How well does supervised fine tuning do from 1 and from 25 demonstrations per task? | [docs/cp0-cold-start.md](docs/cp0-cold-start.md) |
+| CP1 | Can RL be run correctly on SmolVLA's flow matching action expert? | [docs/cp1-rl-loop.md](docs/cp1-rl-loop.md) |
 
 CP0 result: 62.0 percent success from one demonstration per task (95% CI [47.5, 76.5]) and 84.2 percent from 25 (95% CI [81.2, 87.2]), five seeds each.
+
+CP1 result: an exact per step likelihood for the action expert, verified numerically, and an update recipe (200 episodes per update) under which training success on a single task rises in two independent runs (permutation p = 0.0005).
 
 ## Setup
 
@@ -28,7 +31,7 @@ System packages: cmake build-essential libegl1 libgl1 libegl-dev libgl-dev libos
 | path | contents |
 | --- | --- |
 | `configs/` | shared recipe (`base.yaml`), per condition deltas, demonstration subsets |
-| `src/smolvla_rl/` | supervised fine tuning, evaluation |
+| `src/smolvla_rl/` | supervised fine tuning, the RL loop and its verification, evaluation |
 | `scripts/` | experiment launchers and figure generation |
 | `logs/` | raw per episode results, append only |
 | `figures/` | every figure, regenerated from `logs/` by `scripts/make_figures.py` |
