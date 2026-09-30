@@ -15,6 +15,7 @@ OUT = ROOT / "figures"
 INK, MUTED, GRID, SURFACE = "#0b0b0b", "#52514e", "#d8d7d2", "#fcfcfb"
 MARK, ACCENT = "#2a78d6", "#eb6834"
 LABELS = {"a1_sft": "1 demo per task", "a25_sft": "25 demos per task"}
+SERIES = {"a1_sft": ("A1-SFT", "#2a78d6"), "a1_rl": ("A1-RL", "#eb6834"), "a25_sft": ("A25-SFT", "#1baf7a")}
 
 
 def load(path: Path) -> list[dict]:
@@ -89,16 +90,92 @@ def figure_tasks(rows: list[dict], path: Path) -> None:
     fig.savefig(path, dpi=140)
 
 
+def style(ax) -> None:
+    for side in ("top", "right"):
+        ax.spines[side].set_visible(False)
+    ax.tick_params(colors=MUTED)
+    ax.set_axisbelow(True)
+
+
+def strip(ax, scores: dict[str, dict[str, float]], title: str) -> None:
+    for x, condition in enumerate(SERIES):
+        name, color = SERIES[condition]
+        values = [scores[condition][k] for k in sorted(scores[condition])]
+        mean, low, high = mean_interval(values)
+        ax.scatter([x] * len(values), values, s=46, color=color, zorder=3, alpha=0.9, label=name)
+        ax.plot([x - 0.16, x + 0.16], [mean, mean], color=INK, linewidth=2, zorder=4)
+        ax.plot([x, x], [low, high], color=INK, linewidth=1.5, zorder=2)
+        ax.annotate(f"{mean:.1f}", (x + 0.22, mean), color=INK, fontsize=10, va="center")
+    for seed in sorted(scores["a1_sft"]):
+        ax.plot([0, 1], [scores["a1_sft"][seed], scores["a1_rl"][seed]], color=GRID, linewidth=1.5, zorder=1)
+    ax.set_xticks(range(len(SERIES)), [SERIES[c][0] for c in SERIES], fontsize=10, color=INK)
+    ax.set_xlim(-0.5, 2.7)
+    ax.set_ylim(0, 100)
+    ax.set_title(title, color=INK, fontsize=11)
+    ax.grid(axis="y", color=GRID, linewidth=0.8)
+    style(ax)
+
+
+def paired_lift(scores: dict[str, dict[str, float]]) -> tuple[float, float, float]:
+    return mean_interval([scores["a1_rl"][k] - scores["a1_sft"][k] for k in sorted(scores["a1_rl"])])
+
+
+def figure_cp2(scores: dict[str, dict[str, float]], path: Path) -> None:
+    mean, low, high = paired_lift(scores)
+    fig, ax = plt.subplots(figsize=(6.4, 4.8), facecolor=SURFACE)
+    strip(ax, scores, f"RL from one demonstration does not lift SmolVLA 450M\n"
+                      f"LIBERO-Goal held out states, 5 seeds; paired lift {mean:+.1f} [{low:+.1f}, {high:+.1f}]")
+    ax.set_ylabel("success rate (%)", color=INK)
+    fig.tight_layout()
+    fig.savefig(path, dpi=140)
+
+
+def block_differences(rows: list[dict], run_id: str) -> list[float]:
+    first, blocks = {}, collections.defaultdict(list)
+    for row in sorted((r for r in rows if r["run_id"] == run_id), key=lambda r: int(r["round"])):
+        key = (row["task_id"], row["init_state"])
+        first.setdefault(key, int(row["success"]))
+        blocks[int(row["round"]) // 20].append((key, int(row["success"])))
+    return [100 * (sum(s for _, s in blocks[b]) - sum(first[k] for k, _ in blocks[b])) / len(blocks[b])
+            for b in sorted(blocks)]
+
+
+def figure_training(rows: list[dict], path: Path) -> None:
+    curves = {k: block_differences(rows, f"a1_rl_s{k}") for k in "01234"}
+    fig, ax = plt.subplots(figsize=(6.4, 4.4), facecolor=SURFACE)
+    for k, curve in curves.items():
+        ax.plot(range(len(curve)), curve, color=GRID if k != "1" else MUTED, linewidth=1.5, zorder=2)
+        ax.annotate(f"seed {k}", (len(curve) - 1 + 0.1, curve[-1]), color=MUTED, fontsize=8, va="center")
+    mean = [st.mean(c[b] for c in curves.values()) for b in range(8)]
+    ax.plot(range(8), mean, color=MARK, linewidth=2.5, marker="o", markersize=5, zorder=3, label="mean of 5 seeds")
+    ax.axhline(0, color=INK, linewidth=1)
+    ax.set_xlim(-0.3, 8.2)
+    ax.set_xlabel("block of 20 rounds (one optimizer update each)", color=INK)
+    ax.set_ylabel("success minus first visits of the same pairs (points)", color=INK)
+    ax.set_title("Training sampler success on matched (task, state) pairs, A1-RL", color=INK, fontsize=11)
+    ax.grid(axis="y", color=GRID, linewidth=0.8)
+    ax.legend(frameon=False, loc="upper left", fontsize=9)
+    style(ax)
+    fig.tight_layout()
+    fig.savefig(path, dpi=140)
+
+
 def main() -> None:
     OUT.mkdir(exist_ok=True)
-    rows = load(ROOT / "logs/episodes.csv")
+    all_rows = load(ROOT / "logs/episodes.csv")
+    rows = [r for r in all_rows if r["stage"] == "sft" and r["condition"] in LABELS]
     scores = per_seed(rows)
     figure_budget(scores, OUT / "cp0_budget.png")
     figure_tasks(rows, OUT / "cp0_per_task.png")
     for condition, values in scores.items():
         mean, low, high = mean_interval(list(values.values()))
         print(f"{LABELS[condition]:22s} {mean:5.1f}%  95% CI [{low:.1f}, {high:.1f}]  n={len(values)} seeds")
-    print(f"wrote {OUT}/cp0_budget.png and {OUT}/cp0_per_task.png")
+    goal = per_seed([r for r in all_rows if r["condition"] in SERIES])
+    figure_cp2(goal, OUT / "cp2_lift.png")
+    figure_training(load(ROOT / "logs/rl_episodes.csv"), OUT / "cp2_training.png")
+    mean, low, high = paired_lift(goal)
+    print(f"LIBERO-Goal: A1-RL paired lift {mean:+.2f} [{low:+.2f}, {high:+.2f}]")
+    print(f"wrote {OUT}: cp0_budget, cp0_per_task, cp2_lift, cp2_training")
 
 
 if __name__ == "__main__":
