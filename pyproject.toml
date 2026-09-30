@@ -1,0 +1,19 @@
+[project]
+name = "smolvla-rl"
+version = "0.0.1"
+description = "One demonstration plus RL at 450M: SmolVLA on LIBERO-Goal"
+requires-python = ">=3.12"
+dependencies = [
+  "lerobot[smolvla,libero]==0.6.1",
+  "scipy",
+  "pandas",
+  "matplotlib",
+  "pyyaml",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]

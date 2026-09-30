@@ -1,0 +1,10 @@
+media/
+__pycache__/
+*.egg-info/
+.venv/
+outputs/
+runs/
+*.mp4
+wandb/
+.DS_Store
+outputs_test/

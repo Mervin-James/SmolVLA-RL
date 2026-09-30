@@ -1,1 +1,35 @@
 # SmolVLA-RL
+
+**Does one demonstration plus reinforcement learning lift a 450M vision language action model the way it lifts a 7B one?**
+
+SimpleVLA-RL (arXiv 2509.09674) took OpenVLA-OFT, a 7B model, from 17.3 to 91.7 on LIBERO-Long after supervised fine tuning on one trajectory per task followed by online RL (their Table 5). This repository tests the same recipe at 450M on SmolVLA (arXiv 2506.01844), on LIBERO-Goal, using a single 16 GB consumer GPU.
+
+## Status
+
+| checkpoint | question | record |
+| --- | --- | --- |
+| CP0 | How well does supervised fine tuning do from 1 and from 25 demonstrations per task? | [docs/cp0-cold-start.md](docs/cp0-cold-start.md) |
+
+CP0 result: 62.0 percent success from one demonstration per task (95% CI [47.5, 76.5]) and 84.2 percent from 25 (95% CI [81.2, 87.2]), five seeds each.
+
+## Setup
+
+WSL2 Ubuntu 24.04, Python 3.12, one CUDA GPU.
+
+    uv venv ~/venvs/vla --python 3.12
+    uv pip install --python ~/venvs/vla torch torchvision --index-url https://download.pytorch.org/whl/cu128
+    uv pip install --python ~/venvs/vla -e .
+    export MUJOCO_GL=egl LP_NUM_THREADS=1
+
+System packages: cmake build-essential libegl1 libgl1 libegl-dev libgl-dev libosmesa6.
+
+## Layout
+
+| path | contents |
+| --- | --- |
+| `configs/` | shared recipe (`base.yaml`), per condition deltas, demonstration subsets |
+| `src/smolvla_rl/` | supervised fine tuning, evaluation |
+| `scripts/` | experiment launchers and figure generation |
+| `logs/` | raw per episode results, append only |
+| `figures/` | every figure, regenerated from `logs/` by `scripts/make_figures.py` |
+| `docs/` | one record per checkpoint: setup, decisions, results |
