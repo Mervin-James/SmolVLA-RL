@@ -1,5 +1,6 @@
 import csv
 import collections
+import json
 import statistics as st
 from pathlib import Path
 
@@ -160,6 +161,38 @@ def figure_training(rows: list[dict], path: Path) -> None:
     fig.savefig(path, dpi=140)
 
 
+def figure_cp3(goal: dict[str, dict[str, float]], plus: dict[str, dict[str, float]], path: Path) -> None:
+    fig, axes = plt.subplots(1, 2, figsize=(10.4, 4.6), facecolor=SURFACE, sharey=True)
+    for ax, scores, name in ((axes[0], goal, "LIBERO-Goal, held out states"), (axes[1], plus, "LIBERO-Plus, 196 variants")):
+        mean, low, high = paired_lift(scores)
+        strip(ax, scores, f"{name}\nA1-RL paired lift {mean:+.1f} [{low:+.1f}, {high:+.1f}]")
+    axes[0].set_ylabel("success rate (%), per seed", color=INK)
+    fig.suptitle("RL changes neither distribution; the demonstration gap survives perturbation", color=INK, fontsize=12)
+    fig.tight_layout()
+    fig.savefig(path, dpi=140)
+
+
+def figure_categories(rows: list[dict], category: dict[str, str], path: Path) -> None:
+    cell = collections.defaultdict(list)
+    for row in rows:
+        cell[(row["condition"], category[row["task_id"]])].append(int(row["success"]))
+    cats = sorted({category[r["task_id"]] for r in rows}, key=lambda c: st.mean(cell[("a25_sft", c)]))
+    fig, ax = plt.subplots(figsize=(7.4, 4.6), facecolor=SURFACE)
+    y = np.arange(len(cats))
+    for offset, (condition, (name, color)) in zip((-0.18, 0.0, 0.18), SERIES.items()):
+        ax.scatter([100 * st.mean(cell[(condition, c)]) for c in cats], y + offset, s=46, color=color, zorder=3,
+                   label=name, edgecolors=SURFACE, linewidths=1.5)
+    ax.set_yticks(y, cats, fontsize=10, color=INK)
+    ax.set_xlim(0, 100)
+    ax.set_xlabel("success rate (%), pooled over 5 seeds, 140 episodes per point", color=INK)
+    ax.set_title("LIBERO-Plus by perturbation category", color=INK, fontsize=11)
+    ax.grid(axis="x", color=GRID, linewidth=0.8)
+    ax.legend(frameon=False, loc="lower right", fontsize=9)
+    style(ax)
+    fig.tight_layout()
+    fig.savefig(path, dpi=140)
+
+
 def main() -> None:
     OUT.mkdir(exist_ok=True)
     all_rows = load(ROOT / "logs/episodes.csv")
@@ -171,11 +204,17 @@ def main() -> None:
         mean, low, high = mean_interval(list(values.values()))
         print(f"{LABELS[condition]:22s} {mean:5.1f}%  95% CI [{low:.1f}, {high:.1f}]  n={len(values)} seeds")
     goal = per_seed([r for r in all_rows if r["condition"] in SERIES])
+    plus_rows = [r for r in load(ROOT / "logs/episodes_plus.csv") if r["condition"] in SERIES]
+    plus = per_seed(plus_rows)
+    category = json.loads((ROOT / "configs/libero_plus_sample.json").read_text())["category_of"]
     figure_cp2(goal, OUT / "cp2_lift.png")
     figure_training(load(ROOT / "logs/rl_episodes.csv"), OUT / "cp2_training.png")
-    mean, low, high = paired_lift(goal)
-    print(f"LIBERO-Goal: A1-RL paired lift {mean:+.2f} [{low:+.2f}, {high:+.2f}]")
-    print(f"wrote {OUT}: cp0_budget, cp0_per_task, cp2_lift, cp2_training")
+    figure_cp3(goal, plus, OUT / "cp3_distributions.png")
+    figure_categories(plus_rows, category, OUT / "cp3_categories.png")
+    for name, sc in (("LIBERO-Goal", goal), ("LIBERO-Plus", plus)):
+        mean, low, high = paired_lift(sc)
+        print(f"{name}: A1-RL paired lift {mean:+.2f} [{low:+.2f}, {high:+.2f}]")
+    print(f"wrote {OUT}: cp0_budget, cp0_per_task, cp2_lift, cp2_training, cp3_distributions, cp3_categories")
 
 
 if __name__ == "__main__":
